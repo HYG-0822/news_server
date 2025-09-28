@@ -1,18 +1,17 @@
 package com.example.hello.news.service;
 
-import com.example.hello.news.dto.CategoryDTO;
-import com.example.hello.news.dto.NewsResponse;
-import com.example.hello.news.dto.SourceDTO;
-import com.example.hello.news.dto.SourceResponse;
+import com.example.hello.news.dto.*;
+import com.example.hello.news.entity.Article;
 import com.example.hello.news.entity.Category;
 import com.example.hello.news.entity.Source;
+import com.example.hello.news.repository.ArticleRepository;
 import com.example.hello.news.repository.CategoryRepository;
 import com.example.hello.news.repository.SourceRepository;
 import com.google.gson.Gson;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.net.URI;
@@ -22,6 +21,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +37,7 @@ public class NewsService {
 
     private final CategoryRepository categoryRepository;
     private final SourceRepository sourceRepository;
+    private final ArticleRepository articleRepository;
 
     public NewsResponse getGeneral() throws URISyntaxException, IOException, InterruptedException {
         String url = "https://newsapi.org/v2/top-headlines?country=us&apiKey=2d652a40d7e54f42ac683e4eaae245e0";
@@ -152,29 +153,5 @@ public class NewsService {
         // } )
 
         return sources.stream().map(Source::toDTO).toList();
-    }
-
-    public void inputArticles(String category) throws URISyntaxException, IOException, InterruptedException {
-        String url = String.format("%scategory=%s&%s", articleURL, category, apiKey);
-        System.out.println( url );
-        // newsapi.article_url=https://newsapi.org/v2/top-headlines?country=us&category=business&apiKey=2d652a40d7e54f42ac683e4eaae245e0
-
-        //client instance를 생성한다.
-        HttpClient client = HttpClient.newBuilder().build();
-
-        //request 인스턴트를 생성한다. (필수 : url, method(요청방법))
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(new URI(url))
-                .GET()
-                .build();
-
-        //client에서 request를 보내고 response를 문자열 행태로 받아온다.
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        String resBody = response.body();
-
-        Gson gson = new Gson();
-        NewsResponse newsResponse = gson.fromJson(resBody, NewsResponse.class);
-        System.out.println( newsResponse.getStatus() );
-        System.out.println( newsResponse.getTotalResults() );
     }
 }
