@@ -1,6 +1,7 @@
 package com.example.hello.news.entity;
 
 import com.example.hello.news.dto.ArticleDTO;
+import com.example.hello.news.dto.SourceDTO;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -21,14 +22,14 @@ public class Article {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "source", foreignKey = @ForeignKey(name = "article_ibfk_1"))
+    @JoinColumn(name = "source_id", foreignKey = @ForeignKey(name = "article_ibfk_1"))
     private Source source;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category", foreignKey = @ForeignKey(name = "article_ibfk_2"))
+    @JoinColumn(name = "category_id", foreignKey = @ForeignKey(name = "article_ibfk_2"))
     private Category category;
 
-    @Column(length = 150)
+    @Column(length = 255)
     private String author;
 
     @Column(length = 500)
@@ -55,6 +56,7 @@ public class Article {
     @Column(name = "updated_at", insertable = false)
     private LocalDateTime UpdateAt;
 
+    // Article을 주면 DTO를 만들어주는 함수
     public static Article fromDTO(ArticleDTO dto, Source src, Category cat) {
         Article article = new Article();
 
@@ -70,5 +72,21 @@ public class Article {
         article.setContent(dto.getContent());
 
         return article;
+    }
+
+    public static ArticleDTO toDTO(Article article) {
+        ArticleDTO dto = new ArticleDTO();
+        dto.setAuthor(article.getAuthor());
+        dto.setTitle(article.getTitle());
+        dto.setUrl(article.getUrl());
+        dto.setDescription(article.getDescription());
+        dto.setUrlToImage(article.getUrlToImage());
+        dto.setPublishedAt(article.getPublishedAt());
+        dto.setContent(article.getContent());
+
+        SourceDTO srcDTO = Source.toDTO(article.getSource());
+        dto.setSource(srcDTO);
+
+        return dto;
     }
 }

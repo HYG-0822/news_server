@@ -4,8 +4,14 @@
 </head>
 <body th:replace="~{layout :: base(~{::section})}">
     <section>
+
+        <div class="alert alert-danger" th:if="${error}">
+            <p th:text="${error}"></p>
+        </div>
+
         <div>
             <h1>뉴스 발행처</h1>
+            <a class="btn btn-primary mb-1" th:href="@{/admin/inputSources}" th:text="'발행처 갱신'" >발행처 갱신</a>
         </div>
         <table class="table table-striped table-hover">
             <thead class="table-dark">
@@ -17,7 +23,7 @@
             </tr>
             </thead>
             <tbody>
-            <tr th:each="src : ${sources}">
+            <tr th:each="src : ${sources.content}">
                 <td>
                     <a th:href="${src.url}" th:text="${src.name}"></a>
                 </td>
@@ -27,6 +33,41 @@
             </tr>
             </tbody>
         </table>
+
+        <!-- 페이지 제어기 페이지네이션 -->
+        <nav>
+            <ul class="pagination justify-content-center my-3">
+                <!-- 처음 -->
+                <li class="page-item" th:classappend="${sources.first} ? 'disabled'">
+                    <a class="page-link" th:href="@{/admin/source(page=0, size=${sources.size})}">처음</a>
+                </li>
+
+                <!-- 이전 -->
+                <li class="page-item" th:classappend="${sources.first} ? 'disabled'">
+                    <a class="page-link" th:href="@{/admin/source(page=${sources.number-1}, size=${sources.size})}">이전</a>
+                </li>
+
+                <!-- 페이지 번호(최대 10개) -->
+                <li class="page-item"
+                    th:each="i : ${#numbers.sequence((sources.number / 10)*10,
+                                                                T(java.lang.Math).min((sources.number/10)*10+9, sources.totalPages-1))}"
+                    th:classappend="${sources.number == 1} ? active">
+                    <a class="page-link"
+                       th:href="@{/admin/source(page=${i}, size=${sources.size})}"
+                    th:text="${i + 1}">1</a>
+                </li>
+
+                <!-- 다음 -->
+                <li class="page-item" th:classappend="${sources.last} ? 'disabled'">
+                    <a class="page-link" th:href="@{/admin/source(page=${sources.number+1}, size=${sources.size})}">다음</a>
+                </li>
+                <!-- 마지막 -->
+                <li class="page-item" th:classappend="${sources.last} ? 'disabled'">
+                    <a class="page-link" th:href="@{/admin/source(page=${sources.totalPages-1}, size=${sources.size})}">마지막</a>
+                </li>
+            </ul>
+        </nav>
+
     </section>
 </body>
 </html>

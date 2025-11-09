@@ -10,8 +10,13 @@ import com.example.hello.news.repository.SourceRepository;
 import com.google.gson.Gson;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.io.IOException;
 import java.net.URI;
@@ -20,8 +25,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +45,15 @@ public class NewsService {
     private final CategoryRepository categoryRepository;
     private final SourceRepository sourceRepository;
     private final ArticleRepository articleRepository;
+
+    public Page<ArticleDTO> getArticles(Pageable pageable) {
+        Pageable sorted = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "publishedAt"));
+
+        return articleRepository.findAll(sorted).map(Article::toDTO);
+    }
 
     public NewsResponse getGeneral() throws URISyntaxException, IOException, InterruptedException {
         String url = "https://newsapi.org/v2/top-headlines?country=us&apiKey=2d652a40d7e54f42ac683e4eaae245e0";
@@ -71,6 +87,7 @@ public class NewsService {
         List<CategoryDTO> categoryDTOList = new ArrayList<>();
         for (Category category : categories) {
             CategoryDTO dto = new CategoryDTO();
+            dto.setId(category.getId().toString());
             dto.setName(category.getName());
             dto.setMemo(category.getMemo());
             categoryDTOList.add( dto );
@@ -122,6 +139,12 @@ public class NewsService {
         // SourceDTO ===> Source
         try {
             for (SourceDTO dto : sourceResponse.getSources()) {
+                // dto의 getName()을 추출하여 발행처 이름을 구하고
+                // 발행처 이름을 db에서 검색을 한뒤 있으면 다음 데이터를 가져오도록 수정
+                Optional<Source> srcOpt = sourceRepository.findByName(dto.getName());
+                if (srcOpt.isPresent())
+                    continue;
+
                 Source source = new Source(); // 빈 Source Entity 인스턴스를 생성
                 source.setSid(dto.getId());
                 source.setName(dto.getName());
@@ -138,10 +161,10 @@ public class NewsService {
         }
     }
 
-    public List<SourceDTO> getSources() {
+    public Page<SourceDTO> getSources(Pageable pageable) {
         // 데이터베이스로부터 Source Entity 리스트를 가져와서
         // 모든 Source Entity 인스턴스를 SourceDTO 인스턴스로 변환하여 반환한다
-        List<Source> sources = sourceRepository.findAll();
+        Page<Source> sources = sourceRepository.findAll(pageable);
 
         // for (Source source : sources) {}
 
@@ -152,6 +175,32 @@ public class NewsService {
         // Source.toDTO(source)
         // } )
 
-        return sources.stream().map(Source::toDTO).toList();
+        return sources.map(Source::toDTO);
+    }
+
+    @Transactional
+    public void updateCategory(String categoryId, String categoryName, String categoryMemo) {
+        Category category = categoryRepository.findById(Long.parseLong(categoryId))
+                .orElseThrow(()-> new RuntimeException("카테고리를 찾을 수 없습니다."));
+
+        category.setName(categoryName);
+        category.setMemo(categoryMemo);
+
+        categoryRepository.save( category );
+    }
+
+    @Transactional
+    public void deleteCategory(String categoryId) {
+
+    }
+
+
+    public HashMap<String,Long> getRecordCount() {
+            HashMap<String, Long> counts = new HashMap<>();
+            counts.put("articles", articleRepository.count());
+            counts.put("sources", articleRepository.count());
+            counts.put("categories", articleRepository.count());
+
+            return counts;
     }
 }

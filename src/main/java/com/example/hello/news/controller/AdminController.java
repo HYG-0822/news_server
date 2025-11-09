@@ -2,20 +2,22 @@ package com.example.hello.news.controller;
 
 import com.example.hello.news.dto.CategoryDTO;
 import com.example.hello.news.dto.CountArticleByCategory;
+import com.example.hello.news.dto.SourceByArticleDTO;
 import com.example.hello.news.dto.SourceDTO;
 import com.example.hello.news.entity.Category;
 import com.example.hello.news.service.ArticleService;
 import com.example.hello.news.service.NewsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.List;
 
 @Controller
@@ -24,6 +26,14 @@ import java.util.List;
 public class AdminController{
     private final NewsService newsService;
     private final ArticleService articleService;
+
+    /*
+    * /admin/category request를 처리하기 위한 함수
+    * newsService로부터 카테고리 데이터 전체를 가져와서 model에 전달한다
+    *
+    * @Param model : 템플릿에 전달할 데이터세트
+    * @return 카테고리 템플릿 페이지
+     */
 
     @GetMapping("/category")
     public String categories(Model model) {
@@ -60,9 +70,32 @@ public class AdminController{
         return "redirect:/admin/category";
     }
 
+    @PostMapping("/updateCategory/{id}")
+    public String updateCategory(@PathVariable("id")String categoryId,
+                                 @RequestParam("name")String categoryName,
+                                 @RequestParam("memo")String categoryMemo,
+                                 Model model) {
+        newsService.updateCategory(categoryName, categoryMemo, categoryId);
+
+        return "redirect:/admin/category";
+    }
+
+    @PostMapping("/deleteCategory/{id}")
+    public String deleteCategory(@PathVariable String id, Model model) {
+        try {
+            newsService.deleteCategory(id);
+        } catch (RuntimeException e) {
+            model.addAttribute("error", e.getMessage());
+            return "category";
+        }
+
+        return "redirect:/admin/category";
+    }
+
+
     @GetMapping("/source")
-    public String getSources(Model model) {
-        List<SourceDTO> sources = newsService.getSources();
+    public String getSources(Model model, Pageable pageable) {
+        Page<SourceDTO> sources = newsService.getSources(pageable);
         model.addAttribute("sources", sources);
 
         return "source";
@@ -83,14 +116,31 @@ public class AdminController{
     }
 
     @GetMapping("/article")
+    // 카테고리 목록
     public String article(Model model) {
+        // 카테고리 목록
+        // System.out.println("newsService.getCategories()");
         List<CategoryDTO> categories = newsService.getCategories();
+        // 현재 기사 개수
+        // System.out.println("articleService.getTotalArticleCount()");
         Long articleCount = articleService.getTotalArticleCount();
+        // 기사가 있는 카테고리 개수
+        // System.out.println("articleService.countArticleByCategories()");
         List<CountArticleByCategory> countByCategories = articleService.countArticleByCategories();
 
+        List<SourceByArticleDTO> sourceByArticles = articleService.getArticleCountBySource();
+        Long top10Sum = sourceByArticles.stream().mapToLong(SourceByArticleDTO::getCount).sum();    // 상위 10개 기사 "count = ??"
+        Long etcCount = articleCount - top10Sum; // 기타 개수
+
+        // 소스별 기사들의 개수
+        // 상위 10개의 정보들만 별도로 취합하고 나머지 개수들을 별도로 구함
+
+        // 위에서 구한 데이터들을 템플릿에 전달
         model.addAttribute("articleCount", articleCount);
         model.addAttribute("countsByCategory", countByCategories);
         model.addAttribute("categories", categories);
+        model.addAttribute("sourceByArticles", sourceByArticles);
+        model.addAttribute("etcCount", etcCount);
 
         return "article";
     }
@@ -108,5 +158,18 @@ public class AdminController{
 
         return "redirect:/admin/article";
 
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        HashMap<String, Long> counts = newsService.getRecordCount();
+        model.addAttribute("counts", counts);
+
+        return "dashboard";
+    }
+
+    @GetMapping("/")
+    public String index(Model model) {
+        return "redirect:/admin/dashboard";
     }
 }
